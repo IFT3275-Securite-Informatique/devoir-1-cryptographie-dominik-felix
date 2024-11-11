@@ -4,8 +4,8 @@ import requests
 from collections import Counter
 
 #if not already installed
-#nltk.download('punkt')  # For tokenizing
-#nltk.download('punkt_tab')
+nltk.download('punkt')  # For tokenizing
+nltk.download('punkt_tab')
 
 # Step 1: Load and prepare French text corpus
 def load_text_from_web(url):
