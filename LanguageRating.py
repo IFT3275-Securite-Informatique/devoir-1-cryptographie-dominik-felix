@@ -1,13 +1,11 @@
-import nltk
 from nltk import FreqDist, ngrams, word_tokenize
-from nltk.corpus import reuters
-from collections import Counter
 import requests
 
+#if not already installed
 #nltk.download('punkt')  # For tokenizing
 #nltk.download('punkt_tab')
 
-# Step 1: Load and prepare your French text corpus
+# Step 1: Load and prepare French text corpus
 def load_text_from_web(url):
     try:
         response = requests.get(url)

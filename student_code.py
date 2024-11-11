@@ -4,11 +4,6 @@ import requests
 
 import LanguageRating
 
-"""
-Preparation:
-all possible encoding symbols:
-"""
-
 
 def cut_string_into_pairs(text):
     pairs = []
@@ -67,10 +62,13 @@ def freq_french(text):
     return freq
 
 
+#initialize key with mapping high frequencies
 def initialize_key(cipher_freq, french_freq, hill):
     cipher_symbols = [symbol for symbol, _ in cipher_freq]
+    #choose set of possible assigned values if distinct cipher sequences < 256
     french_symbols = [symbol for symbol, _ in french_freq[:min(len(cipher_symbols)+2*hill, len(french_freq))]]
-    for _ in range(hill):
+    #factor 2 as we cannot explore many hills as it is time consuming
+    for _ in range(hill**2):
         # Select two random indices to swap their mappings
         idx1, idx2 = random.sample(range(len(french_symbols)), 2)
         # Swap the cipher symbols (i.e., the first item in each tuple)
@@ -79,75 +77,81 @@ def initialize_key(cipher_freq, french_freq, hill):
     return mapping_dict
 
 
-#def mutate_key(key: dict, cipher_freq):
-    #make dependent on freq and randomness on hill step
- #   new_key = key.copy()
-  #  cipher_seq, cipher_freq_value = random.choice(cipher_freq)
-   # swap_symbol = random.choice(caracteres)
+#slightly change key by swapping two values
+def mutate_key(key: dict, cipher_freq):
+    new_key = key.copy()
+    cipher_seq, cipher_freq_value = random.choice(cipher_freq)
+    swap_symbol = random.choice(caracteres)
     #check if chosen symbol already is part of the key
     #included = False
-    #for k in key:
-     #   if key[k] == swap_symbol:
-      #      new_key[k], new_key[cipher_seq] = new_key[cipher_seq], new_key[k]
+    for k in key:
+        if key[k] == swap_symbol:
+            new_key[k], new_key[cipher_seq] = new_key[cipher_seq], new_key[k]
        #     included = True
     #if not included:
      #   new_key[cipher_seq] = swap_symbol
-    #return new_key
-def mutate_key_based_on_frequency(key: dict, cipher_freq, french_freq):
-    """Refine mutation based on frequency discrepancies."""
-    new_key = key.copy()
-    # Select symbols to swap based on frequency differences
-    mismatched_symbols = [
-        (cf[0], ff[0]) for cf, ff in zip(cipher_freq, french_freq) if key[cf[0]] != ff[0]
-    ]
-    if mismatched_symbols:
-        cipher_symbol, french_symbol = random.choice(mismatched_symbols)
-        for k, v in key.items():
-            if v == french_symbol:
-                new_key[k], new_key[cipher_symbol] = new_key[cipher_symbol], v
-                break
     return new_key
 
-def convert(cipher, testkey: dict, final = False):
+
+#try to mutate key based on frequency but seemed not to yield better result
+#def mutate_key_based_on_frequency(key: dict, cipher_freq, french_freq):
+    #"""Refine mutation based on frequency discrepancies."""
+ #   new_key = key.copy()
+    # Select symbols to swap based on frequency differences
+  #  mismatched_symbols = [
+   #     (cf[0], ff[0]) for cf, ff in zip(cipher_freq, french_freq) if key[cf[0]] != ff[0]
+    #]
+    #if mismatched_symbols:
+    #    cipher_symbol, french_symbol = random.choice(mismatched_symbols)
+      #  for k, v in key.items():
+     #       if v == french_symbol:
+       #         new_key[k], new_key[cipher_symbol] = new_key[cipher_symbol], v
+        #        break
+    #return new_key
+
+#convert C to M
+def convert(cipher, testkey: dict, final=False):
+    #for better performance of the scoring system only rate a part of long texts
     if not final:
         length = len(cipher)
         if length > 10000:
-            shortened = cipher[int(length/3): int(length * 2 / 3)]
+            #shorten cipher
+            cipher = cipher[int(length/3): int(length * 2 / 3)]
     symbols = cut_into_symbols(cipher)
     cipher_to_plain = {cipher_symbol: plain_symbol for cipher_symbol, plain_symbol in testkey.items()}
     decoded_text = ''.join(cipher_to_plain.get(s, s) for s in symbols)
     return decoded_text.upper()
 
-
-def build_trigram_frequency(text):
+#try to implement own scoring system, was not accurate like the one now used
+#def build_trigram_frequency(text):
     # Remove whitespace and convert to lowercase for uniformity
-    text.lower()
+ #   text.lower()
     # Generate trigrams
-    trigrams = [text[i:i+3] for i in range(len(text) - 2)]
+  #  trigrams = [text[i:i+3] for i in range(len(text) - 2)]
     # Count frequency of each trigram
-    trigram_freq = Counter(trigrams)
+   # trigram_freq = Counter(trigrams)
     # Sort by frequency in descending order
-    common_trigrams = {item: count for item, count in trigram_freq.items() if count > 5}#trigram_freq.most_common()
+    #common_trigrams = {item: count for item, count in trigram_freq.items() if count > 5}#trigram_freq.most_common()
     #print(common_trigrams)
-    return common_trigrams
+    #return common_trigrams
 
 
-def rate(decrypted_text, trigram_freq):
-    score = 0
-    decrypted_text = decrypted_text.lower()  # Ensure uniformity for matching
+#def rate(decrypted_text, trigram_freq):
+ #   score = 0
+  #  decrypted_text = decrypted_text.lower()  # Ensure uniformity for matching
 
     # Calculate score based on trigram frequency in the decrypted text
-    for i in range(len(decrypted_text) - 2):
-        trigram = decrypted_text[i:i + 3]
-        if trigram in trigram_freq:
-            score += trigram_freq[trigram]
+   # for i in range(len(decrypted_text) - 2):
+    #    trigram = decrypted_text[i:i + 3]
+     #   if trigram in trigram_freq:
+      #      score += trigram_freq[trigram]
 
-    return score
+    #return score
 
 
-
+#for better results increase values, not done due to performance
 HILLS = 5
-STAIRS_PER_HILL = 5000
+STAIRS_PER_HILL = 2500
 
 
 def decrypt(C):
@@ -155,23 +159,21 @@ def decrypt(C):
     best_key = None
     cipher_freq = freq_cipher(C)
     FREQ_FR = freq_french(text)
-    trigram_freq = build_trigram_frequency(text[10000:20000])
+    #trigram_freq = build_trigram_frequency(text[10000:20000])
 
     for hill in range(HILLS):
         print('hill: ' + str(hill))
         print(best_rating)
         #initialize key, map highest freqs
         hill_key = initialize_key(cipher_freq, FREQ_FR, hill)
-        hill_rating = rate(convert(C, hill_key), trigram_freq)
+        hill_rating = LanguageRating.rate_decrypted_text(convert(C, hill_key))
+        #hill_rating = rate(convert(C, hill_key), trigram_freq)
         #print('key: ' + str(hill_key))
         step = 0
         while step < STAIRS_PER_HILL:
-            print('step: ' + str(step))
-            new_key = mutate_key_based_on_frequency(hill_key, cipher_freq, FREQ_FR)
+            new_key = mutate_key(hill_key, cipher_freq)#mutate_key_based_on_frequency(hill_key, cipher_freq, FREQ_FR)
             new_rating = LanguageRating.rate_decrypted_text(convert(C, new_key))
             #new_rating = rate(convert(C, new_key), trigram_freq)
-            #print('key: ' + str(new_key))
-            #print(new_rating)
             if new_rating > hill_rating:
                 hill_rating = new_rating
                 hill_key = new_key
@@ -182,7 +184,6 @@ def decrypt(C):
             best_key = hill_key
             best_rating = hill_rating
 
-    print(best_key)
     M = convert(C, best_key, True)
     print(M)
     return M
